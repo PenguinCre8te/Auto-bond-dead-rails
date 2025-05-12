@@ -1,61 +1,78 @@
 pcall(function()
     workspace.StreamingEnabled = false
-    workspace.SimulationRadius = math.huge
+    if workspace:FindFirstChild("SimulationRadius") then
+        workspace.SimulationRadius = 999999
+    end
 end)
 
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace         = game:GetService("Workspace")
-local TweenService      = game:GetService("TweenService")
 
 local player   = Players.LocalPlayer
 local char     = player.Character or player.CharacterAdded:Wait()
 local hrp      = char:WaitForChild("HumanoidRootPart")
 local humanoid = char:WaitForChild("Humanoid")
 
-local networkFolder    = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Network")
-local RemotePromiseMod = require(networkFolder:WaitForChild("RemotePromise"))
-local ActivatePromise  = RemotePromiseMod.new("ActivateObject")
+local executor = "unknown"
+pcall(function()
+    if identifyexecutor then
+        executor = identifyexecutor():lower()
+    end
+end)
+print("Running on executor:", executor)
 
-local remotesRoot       = ReplicatedStorage:WaitForChild("Remotes")
-local EndDecisionRemote = remotesRoot:WaitForChild("EndDecision")
+local success, _queue = pcall(function()
+    return (syn and syn.queue_on_teleport)
+        or queue_on_teleport
+        or (fluxus and fluxus.queue_on_teleport)
+end)
+local queue_on_tp = success and _queue or function(...) end
 
-local queue_on_tp = (syn and syn.queue_on_teleport)
-    or queue_on_teleport
-    or (fluxus and fluxus.queue_on_teleport)
+local remotesRoot1 = ReplicatedStorage:WaitForChild("Remotes")
+local remotePromiseFolder = ReplicatedStorage
+    :WaitForChild("Shared")
+    :WaitForChild("Network")
+    :WaitForChild("RemotePromise")
+local remotesRoot2 = remotePromiseFolder:WaitForChild("Remotes")
+
+local EndDecisionRemote = remotesRoot1:WaitForChild("EndDecision")
+
+local hasPromise = true
+local RemotePromiseMod
+do
+    local ok, mod = pcall(function()
+        return require(remotePromiseFolder)
+    end)
+    if ok and mod then
+        RemotePromiseMod = mod
+    else
+        hasPromise = false
+        warn("↳ Free Executor doesnt support RemotePromise now using the Fallback thing")
+    end
+end
+
+local activateName = "C_ActivateObject"
+local activateRemote = remotesRoot2:FindFirstChild(activateName)
+    or remotesRoot1:FindFirstChild(activateName)
+assert(activateRemote,
+       "No Remote '"..activateName.."' Found")
+
+local Activate
+if hasPromise then
+    Activate = RemotePromiseMod.new(activateName)
+else
+    if activateRemote:IsA("RemoteFunction") then
+        Activate = { InvokeServer = function(_, ...) return activateRemote:InvokeServer(...) end }
+    elseif activateRemote:IsA("RemoteEvent") then
+        Activate = { InvokeServer = function(_, ...) return activateRemote:FireServer(...) end }
+    else
+        error(activateName.." is not an Remote")
+    end
+end
 
 local bondData = {}
 local seenKeys = {}
-local bondCount = 0
-
--- Create UI
-local gui = Instance.new("ScreenGui")
-gui.Parent = player:WaitForChild("PlayerGui")
-
-local label = Instance.new("TextLabel")
-label.Parent = gui
-label.Size = UDim2.new(0, 200, 0, 50)
-label.Position = UDim2.new(0.5, -100, 0.1, 0)
-label.BackgroundColor3 = Color3.new(0, 0, 0)
-label.TextColor3 = Color3.new(1, 1, 1)
-label.TextScaled = true
-label.Text = "Bonds Collected: 0"
-
-local creditLabel = Instance.new("TextLabel")
-creditLabel.Parent = gui
-creditLabel.Size = UDim2.new(0, 300, 0, 30)
-creditLabel.Position = UDim2.new(0.5, -150, 0.15, 0)
-creditLabel.BackgroundTransparency = 1
-creditLabel.TextColor3 = Color3.new(1, 1, 1)
-creditLabel.TextScaled = true
-creditLabel.Text = "Created by PenguinCre8te based on CyberSeall aka Terry Davis"
-
--- Tracking bonds
-local function updateBondCount()
-    bondCount = bondCount + 1
-    label.Text = "Bonds Collected: " .. bondCount
-    print("Collected bonds:", bondCount)
-end
 
 local function recordBonds()
     local runtime = Workspace:WaitForChild("RuntimeItems")
@@ -68,7 +85,7 @@ local function recordBonds()
                 )
                 if not seenKeys[key] then
                     seenKeys[key] = true
-                    table.insert(bondData, { item = item, pos = part.Position, key = key })
+                    table.insert(bondData, { item = item, pos = part.Position })
                 end
             end
         end
@@ -76,8 +93,8 @@ local function recordBonds()
 end
 
 print("=== Starting map scan ===")
-local scanTarget = CFrame.new(-424.448975, 26.055481, -49040.6562, -1,0,0, 0,1,0, 0,0,-1)
-local scanSteps = 50
+local scanTarget = CFrame.new(-424.448975, 26.055481, -49040.6562)
+local scanSteps  = 50
 for i = 1, scanSteps do
     hrp.CFrame = hrp.CFrame:Lerp(scanTarget, i/scanSteps)
     task.wait(0.3)
@@ -90,7 +107,7 @@ recordBonds()
 
 print(("→ %d Bonds found"):format(#bondData))
 if #bondData == 0 then
-    warn("No Bonds found – check Runtime Items")
+    warn("Couldnt find Bonds however")
     return
 end
 
@@ -100,36 +117,42 @@ local seat = chair.Seat
 
 seat:Sit(humanoid)
 task.wait(0.2)
-assert(humanoid.SeatPart == seat, "Seat error")
+local seatWorks = (humanoid.SeatPart == seat)
 
 for idx, entry in ipairs(bondData) do
-    print(("--- Bond %d/%d: %s ---"):format(idx, #bondData, entry.key))
+    print(("--- Bond %d/%d ---"):format(idx, #bondData))
+    local targetPos = entry.pos + Vector3.new(0, 2, 0)
 
-    local targetCFrame = CFrame.new(entry.pos) * CFrame.new(0, 2, 0)
-    seat:PivotTo(targetCFrame)
-    task.wait(0.05)
-
-    if humanoid.SeatPart ~= seat then
-        seat:Sit(humanoid)
-        task.wait(0.05)
+    if seatWorks then
+        seat:PivotTo(CFrame.new(targetPos))
+        task.wait(0.1)
+        if humanoid.SeatPart ~= seat then
+            seat:Sit(humanoid)
+            task.wait(0.1)
+        end
+    else
+        hrp.CFrame = CFrame.new(targetPos)
+        task.wait(0.1)
     end
 
-    ActivatePromise:InvokeServer(entry.item)
-    task.wait(0.2)
+    local ok, err = pcall(function()
+        Activate:InvokeServer(entry.item)
+    end)
+    if not ok then
+        warn("InvokeServer error:", err)
+    end
+
+    task.wait(0.5)
 
     if not entry.item.Parent then
         print("Bond collected")
-        updateBondCount()
     else
-        warn("Increase timeout when not collecting")
+        warn("Not colllected some error with the Timeout maybe...")
     end
 end
 
 humanoid:TakeDamage(999999)
 EndDecisionRemote:FireServer(false)
-
-if queue_on_tp then
-    queue_on_tp(loadstring(game:HttpGet("https://raw.githubusercontent.com/PenguinCre8te/Auto-bond-dead-rails/refs/heads/main/script.lua"))())
-end
+queue_on_tp("PUT YOUR SCRIPT HERE") -- For examlpe 'loadstring(game:HttpGet("https://yourniggersite.com/raw/dontbeaskid.lua"))()'
 
 print("=== Script finished ===")
