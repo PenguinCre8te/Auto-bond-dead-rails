@@ -153,6 +153,6 @@ end
 
 humanoid:TakeDamage(999999)
 EndDecisionRemote:FireServer(false)
-queue_on_tp(loadstring(game:HttpGet("https://raw.githubusercontent.com/PenguinCre8te/Auto-bond-dead-rails/refs/heads/main/script.lua"))()) -- For examlpe 'loadstring(game:HttpGet("https://raw.githubusercontent.com/PenguinCre8te/Auto-bond-dead-rails/refs/heads/main/script.lua"))()'
+queue_on_tp('loadstring(game:HttpGet("https://raw.githubusercontent.com/PenguinCre8te/Auto-bond-dead-rails/refs/heads/main/script.lua"))()') -- For examlpe 'loadstring(game:HttpGet("https://raw.githubusercontent.com/PenguinCre8te/Auto-bond-dead-rails/refs/heads/main/script.lua"))()'
 
 print("=== Script finished ===")
