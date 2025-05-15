@@ -13,6 +13,7 @@ local player   = Players.LocalPlayer
 local char     = player.Character or player.CharacterAdded:Wait()
 local hrp      = char:WaitForChild("HumanoidRootPart")
 local humanoid = char:WaitForChild("Humanoid")
+game:GetService("RunService"):Set3dRenderingEnabled(false)
 
 local executor = "unknown"
 pcall(function()
