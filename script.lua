@@ -5,6 +5,16 @@ pcall(function()
     end
 end)
 
+-- Create VirtualUser to prevent AFK kick
+local bb = game:GetService("VirtualUser")
+game:GetService("Players").LocalPlayer.Idled:Connect(function()
+    bb:CaptureController()
+    bb:ClickButton2(Vector2.new())
+
+    
+end)
+
+
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace         = game:GetService("Workspace")
@@ -151,6 +161,7 @@ for idx, entry in ipairs(bondData) do
         warn("Not colllected some error with the Timeout maybe...")
     end
 end
+
 
 humanoid:TakeDamage(999999)
 EndDecisionRemote:FireServer(false)
