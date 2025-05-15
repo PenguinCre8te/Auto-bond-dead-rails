@@ -143,7 +143,7 @@ for idx, entry in ipairs(bondData) do
         end
     else
         hrp.CFrame = CFrame.new(targetPos)
-        task.wait(0.1)
+        task.wait(0.3)
     end
 
     local ok, err = pcall(function()
